@@ -238,6 +238,9 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 		}
 	}
 
+	if (!(pext2 & PEXT2_INTERVAL))
+		bits &= ~UF_LERP;
+
 	bits &= ~UF_BONEDATA;
 
 	/*check if we need more precision for some things*/
