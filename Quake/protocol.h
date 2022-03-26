@@ -50,8 +50,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // PROTOCOL_FTE_PEXT2 flags
 #define PEXT2_REPLACEMENTDELTAS 0x00000008                                 // more compact entity deltas (can also be split across multiple packets)
 #define PEXT2_PREDINFO          0x00000020                                 // provides input acks and reworks stats such that clc_clientdata becomes redundant.
-#define PEXT2_SUPPORTED_CLIENT  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO) // pext2 flags that we understand+support
-#define PEXT2_SUPPORTED_SERVER  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO)
+#define PEXT2_INTERVAL          0x00000400                                 // support for sending nextthink for better lerp timing
+#define PEXT2_SUPPORTED_CLIENT  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO | PEXT2_INTERVAL) // pext2 flags that we understand+support
+#define PEXT2_SUPPORTED_SERVER  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO | PEXT2_INTERVAL)
 #define PEXT2_ACCEPTED_CLIENT   (PEXT2_SUPPORTED_CLIENT) // pext2 flags that we can parse, but don't want to advertise
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
@@ -125,7 +126,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define UF_MODELINDEX2 (1u << 27) /*for lame visible weapon models, like q2. just adds a second ent at the same point*/
 #define UF_GRAVITYDIR  (1u << 28) /*yay prediction*/
 #define UF_EFFECTS2    (1u << 29) /*effects is 16bit, or if both effects flags are set then 32bit*/
-#define UF_UNUSED2     (1u << 30)
+#define UF_LERP        (1u << 30)
 #define UF_UNUSED1     (1u << 31)
 
 /*these flags are generally not deltaed as they're changing constantly*/
@@ -369,6 +370,7 @@ typedef struct entity_state_s
 	unsigned char  colormod[3]; // spike -- entity tints, *32
 	unsigned char  alpha;       // johnfitz -- added
 	unsigned int   solidsize;   // for csqc prediction logic.
+	unsigned char  lerp;
 #define ES_SOLID_NOT   0
 #define ES_SOLID_BSP   31
 #define ES_SOLID_HULL1 0x80201810

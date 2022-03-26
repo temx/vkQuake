@@ -201,6 +201,8 @@ static unsigned int MSGFTE_DeltaCalcBits (entity_state_t *from, entity_state_t *
 		bits |= UF_TAGINFO;
 	if (to->traileffectnum != from->traileffectnum || to->emiteffectnum != from->emiteffectnum)
 		bits |= UF_TRAILEFFECT;
+	if (to->lerp != from->lerp)
+		bits |= UF_LERP;
 
 	return bits;
 }
@@ -374,6 +376,9 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 		MSG_WriteByte (msg, state->colormod[1]);
 		MSG_WriteByte (msg, state->colormod[2]);
 	}
+
+	if (bits & UF_LERP)
+		MSG_WriteByte(msg, state->lerp);
 }
 
 static struct entity_num_state_s *snapshot_entstate;
@@ -811,6 +816,8 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 
 	state->pmovetype = 0;
 	state->velocity[0] = state->velocity[1] = state->velocity[2] = 0;
+
+	state->lerp = ent->sendinterval ? (byte)(Q_rint((ent->v.nextthink - qcvm->time) * 254)) + 1 : 0;
 }
 
 byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
