@@ -501,9 +501,9 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 		/*news->gravitydir[0] =*/MSG_ReadByte ();
 		/*news->gravitydir[1] =*/MSG_ReadByte ();
 	}
-	if (bits & UF_UNUSED2)
+	if (bits & UF_LERP)
 	{
-		Host_EndGame ("UF_UNUSED2 bit\n");
+		news->lerp = MSG_ReadByte();
 	}
 	if (bits & UF_UNUSED1)
 	{
@@ -572,7 +572,15 @@ static void CL_EntitiesDeltaed (void)
 			ent->lerpflags &= ~LERP_MOVESTEP;
 
 		ent->alpha = ent->netstate.alpha;
-		ent->lerpflags &= ~LERP_FINISH;
+		if (ent->netstate.lerp > 0)
+		{
+			int value = ent->netstate.lerp - 1;
+			float lerp = value > 100 ? 0.2f + (value - 100) / 192.f : value / 500.f;
+			ent->lerpfinish = ent->msgtime + lerp;
+			ent->lerpflags |= LERP_FINISH;
+		}
+		else
+			ent->lerpflags &= ~LERP_FINISH;
 
 		model = cl.model_precache[ent->netstate.modelindex];
 		if (model != ent->model)
