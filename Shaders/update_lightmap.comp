@@ -114,13 +114,16 @@ void main()
 	};
 
 	vec3 light_accumulated = vec3(0.0f, 0.0f, 0.0f);
-	for (int i = 0; i < MAXLIGHTMAPS; ++i)
+	int i;
+	for (i = 0; i < MAXLIGHTMAPS; ++i)
 	{
 		const uint style = lightstyles[i];
 		if (style == 255) break;
 		const float scale = lightstyle_scales[style / 4][style % 4];
 		light_accumulated += scale * texelFetch(lightstyles_textures[i], ivec2(gl_GlobalInvocationID.xy), 0).xyz;
 	}
+	if (i == 0)
+		light_accumulated = vec3(1.0f, 1.0f, 1.0f);
 
 	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 	{
