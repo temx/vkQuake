@@ -363,6 +363,7 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 }
 #define THREAD_LOCAL __declspec(thread)
 #define FORCE_INLINE __forceinline
+#define ASSUME(x)    __assume(x)
 #else
 static inline int FindFirstBitNonZero (const uint32_t mask)
 {
@@ -370,6 +371,7 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 }
 #define THREAD_LOCAL _Thread_local
 #define FORCE_INLINE __attribute__ ((always_inline)) inline
+#define ASSUME(x)    if (!(x)) __builtin_unreachable()
 #endif
 
 extern int current_skill; // skill level for currently loaded level (in case

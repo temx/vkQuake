@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static cvar_t gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t gl_picmip = {"gl_picmip", "0", CVAR_NONE};
+static cvar_t gl_mipfilter = {"gl_mipfilter", "0", CVAR_ARCHIVE};
 
 extern cvar_t vid_filter;
 extern cvar_t vid_anisotropic;
@@ -419,6 +420,7 @@ void TexMgr_Init (void)
 
 	Cvar_RegisterVariable (&gl_max_size);
 	Cvar_RegisterVariable (&gl_picmip);
+	Cvar_RegisterVariable (&gl_mipfilter);
 	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
 
 	// load notexture images
@@ -442,6 +444,77 @@ void TexMgr_Init (void)
 
 ================================================================================
 */
+
+/*
+================
+Filter_4tap
+================
+*/
+static FORCE_INLINE void Filter_4tap (int coef1, int coef2, int first, int stride, int last, byte *in, byte *out)
+{
+#ifdef USE_SSE2
+	__m128i v0, v1, v2, v3;
+	__m128i side   = _mm_set_epi16 (    0, coef1, coef1, coef1,     0, coef1, coef1, coef1);
+	__m128i center = _mm_set_epi16 (32768, coef2, coef2, coef2, 32768, coef2, coef2, coef2);
+	__m128i round  = _mm_set1_epi16 (128);
+	v0 = stride > 4 ? _mm_cvtsi64_si128 (*(int64_t *)(in + first))  : _mm_cvtsi32_si128 (*(int32_t *)(in + first));
+	v1 = stride > 4 ? _mm_cvtsi64_si128 (*(int64_t *)(in))          : _mm_cvtsi32_si128 (*(int32_t *)(in));
+	v2 = stride > 4 ? _mm_cvtsi64_si128 (*(int64_t *)(in + stride)) : _mm_cvtsi32_si128 (*(int32_t *)(in + stride));
+	v3 = stride > 4 ? _mm_cvtsi64_si128 (*(int64_t *)(in + last))   : _mm_cvtsi32_si128 (*(int32_t *)(in + last));
+	v0 = _mm_mulhi_epu16 (_mm_unpacklo_epi8 (_mm_setzero_si128 (), v0), side);
+	v1 = _mm_mulhi_epu16 (_mm_unpacklo_epi8 (_mm_setzero_si128 (), v1), center);
+	v2 = _mm_mulhi_epu16 (_mm_unpacklo_epi8 (_mm_setzero_si128 (), v2), center);
+	v3 = _mm_mulhi_epu16 (_mm_unpacklo_epi8 (_mm_setzero_si128 (), v3), side);
+	v0 = _mm_add_epi16 (_mm_add_epi16 (v0, v1), _mm_add_epi16 (v2, v3));
+	v0 = _mm_srli_epi16 (_mm_add_epi16 (v0, round), 8);
+	if (stride > 4)
+		*(int64_t *)out = _mm_cvtsi128_si64 (_mm_packus_epi16 (v0, v0));
+	else
+		*(int32_t *)out = _mm_cvtsi128_si32 (_mm_packus_epi16 (v0, v0));
+#else
+	for (int i = 0; i < 1 + (stride > 4); in += 4, out += 4, i++)
+	{
+		out[0] = (coef1 * in[first + 0] + coef2 * in[0] + coef2 * in[stride + 0] + coef1 * in[last + 0] + 32768) >> 16;
+		out[1] = (coef1 * in[first + 1] + coef2 * in[1] + coef2 * in[stride + 1] + coef1 * in[last + 1] + 32768) >> 16;
+		out[2] = (coef1 * in[first + 2] + coef2 * in[2] + coef2 * in[stride + 2] + coef1 * in[last + 2] + 32768) >> 16;
+		out[3] = (in[3] + in[stride + 3] + 1) >> 1; // alpha
+	}
+#endif
+}
+
+/*
+================
+TexMgr_MipMap_4tap
+================
+*/
+static void TexMgr_MipMap_4tap (unsigned *data, unsigned width, unsigned height, unsigned coef_side, unsigned coef_center)
+{
+	unsigned i, j;
+	byte    *out, *in, *staging;
+
+	out = in = (byte *)data;
+	height /= 2; // output height
+	width *= 4;  // input width, in bytes
+
+	for (i = 0; i < height; i++, in += width)
+	{
+		int top = i ? -(int)width : 0;
+		int bottom = i < height - 1 ? 2 * width : width;
+		ASSUME (width > 4);
+		for (j = 0, staging = out; j < width; j += 8, staging += 8, in += 8)
+			Filter_4tap (coef_side, coef_center, top, width, bottom, in, staging);
+
+		staging = out;
+		Filter_4tap (coef_side, coef_center, 0, 4, width > 8 ? 8 : 4, staging, out);
+		for (j = 4, out += 4, staging += 8; j < width / 2 - 4; j += 4, out += 4, staging += 8)
+			Filter_4tap (coef_side, coef_center, -4, 4, 8, staging, out);
+		if (j == width / 2 - 4)
+		{
+			Filter_4tap (coef_side, coef_center, -4, 4, 4, staging, out);
+			out += 4;
+		}
+	}
+}
 
 /*
 ================
@@ -864,7 +937,14 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			num_regions += 1;
 
 			if (mipwidth > 1 && mipheight > 1)
-				TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
+			{
+				int coef_side   = gl_mipfilter.value < 0 ?     0 :  5888;
+				int coef_center = gl_mipfilter.value < 0 ? 32768 : 26880;
+				if ((gl_mipfilter.value < 1 && mipwidth % 2 == 0 && mipheight % 2 == 0) || gl_mipfilter.value < 0)
+					TexMgr_MipMap_4tap (data, mipwidth, mipheight, coef_side, coef_center);
+				else
+					TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
+			}
 
 			mipwidth /= 2;
 			mipheight /= 2;
