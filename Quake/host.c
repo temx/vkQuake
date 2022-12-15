@@ -1050,6 +1050,17 @@ void Host_Init (void)
 		Cbuf_AddText ("\n\nvid_unlock\n");
 	}
 
+	for (int i = com_argc - 1; i > 0; --i)
+	{
+		if (i > 1 && com_argv[i-1][0] == '-' && (strstr(com_argv[i-1], "base") || strstr(com_argv[i-1], "game")))
+			continue;
+		if (Sys_FileType (com_argv[i]) != FS_ENT_NONE)
+		{
+			COM_RunPath (com_argv[i]);
+			break;
+		}
+	}
+
 	if (cls.state == ca_dedicated)
 	{
 		Cbuf_AddText ("exec autoexec.cfg\n");
