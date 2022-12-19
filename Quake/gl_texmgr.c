@@ -934,7 +934,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	vkGetImageMemoryRequirements (vulkan_globals.device, glt->image, &memory_requirements);
 
 	uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-	VkDeviceSize heap_size = q_max (TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_requirements.size);
+	VkDeviceSize heap_size = memory_requirements.size;
 	VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 		&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment,
 		&glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures Heap");
@@ -1278,7 +1278,7 @@ gltexture_t *TexMgr_LoadImage (
 		}
 	if ((flags & TEXPREF_OVERWRITE) && (glt = TexMgr_FindTexture (owner, name)))
 	{
-		if (glt->source_crc == crc)
+		if (false)
 			return glt;
 	}
 	else

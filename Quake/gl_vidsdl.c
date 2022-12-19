@@ -2381,6 +2381,8 @@ void GL_SynchronizeEndRenderingTask (void)
 GL_BeginRendering
 =================
 */
+extern qboolean scrap_dirty;
+
 qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height)
 {
 	if (!use_tasks)
@@ -2404,6 +2406,8 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 
 	*width = vid.width;
 	*height = vid.height;
+
+	scrap_dirty = true;
 
 	if (use_tasks)
 		*begin_rendering_task = Task_AllocateAndAssignFunc (GL_BeginRenderingTask, NULL, 0);
