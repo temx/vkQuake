@@ -45,6 +45,8 @@ float old_blue;
 float fade_time; // duration of fade
 float fade_done; // time when fade will be done
 
+cvar_t r_fog = {"r_fog", "1", CVAR_ARCHIVE};
+
 /*
 =============
 Fog_Update
@@ -250,6 +252,9 @@ float Fog_GetDensity (void)
 {
 	float f;
 
+	if (r_fog.value == 0)
+		return 0.0f;
+
 	if (fade_done > cl.time && fade_time != 0.0f)
 	{
 		f = (fade_done - cl.time) / fade_time;
@@ -370,6 +375,7 @@ called when quake initializes
 void Fog_Init (void)
 {
 	Cmd_AddCommand ("fog", Fog_FogCommand_f);
+	Cvar_RegisterVariable (&r_fog);
 
 	// Cvar_RegisterVariable (&r_vfog);
 

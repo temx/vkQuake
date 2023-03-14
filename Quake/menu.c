@@ -126,6 +126,7 @@ extern cvar_t snd_waterfx;
 extern cvar_t cl_bob;
 extern cvar_t cl_rollangle;
 extern cvar_t v_gunkick;
+extern cvar_t r_fog;
 
 static qboolean slider_grab;
 static qboolean scrollbar_grab;
@@ -1630,6 +1631,7 @@ enum
 	GRAPHICS_OPT_MODELS,
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
+	GRAPHICS_OPT_FOG,
 	GRAPHICS_OPT_SHADOWS,
 	GRAPHICS_OPTIONS_ITEMS,
 };
@@ -1807,6 +1809,8 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_PARTICLES:
 		M_GraphicsOptions_ChooseNextParticles (dir);
 		break;
+	case GRAPHICS_OPT_FOG:
+		Cvar_SetValueQuick (&r_fog, (float)(((int)r_fog.value + 2 + dir) % 2));
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
 			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 2 + dir) % 2));
@@ -1923,6 +1927,9 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PARTICLES,
 		((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2) ? "Classic" : "glQuake"));
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOG, "Fog");
+	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOG, (r_fog.value != 0) ? "on" : "off");
 
 	if (vulkan_globals.ray_query)
 	{

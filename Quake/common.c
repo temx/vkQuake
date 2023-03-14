@@ -2171,6 +2171,7 @@ static void COM_Game_f (void)
 			Draw_NewGame ();
 			R_NewGame ();
 			M_NewGame ();
+			Cbuf_AddText ("\nreset scr_style\nreset r_fog\n");
 		}
 		ExtraMaps_NewGame ();
 		Host_Resetdemos ();
